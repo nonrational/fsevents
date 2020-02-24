@@ -4,32 +4,43 @@ package main
 
 import (
 	"bufio"
-	"io/ioutil"
+	"fmt"
 	"log"
 	"os"
+	"os/exec"
+	"path/filepath"
 	"runtime"
 	"time"
 
 	"github.com/fsnotify/fsevents"
 )
 
+var (
+	_, b, _, _  = runtime.Caller(0)
+	ProjectRoot = filepath.Join(filepath.Dir(b))
+)
+
 func main() {
-	path, err := ioutil.TempDir("", "fsexample")
-	if err != nil {
-		log.Fatalf("Failed to create TempDir: %v", err)
+	path := filepath.Join(ProjectRoot, "restart.txt")
+
+	if err := exec.Command("sh", "-c", fmt.Sprintf("touch %s", path)).Run(); err != nil {
+		panic(err)
 	}
+
 	dev, err := fsevents.DeviceForPath(path)
 	if err != nil {
 		log.Fatalf("Failed to retrieve device for path: %v", err)
 	}
 	log.Print(dev)
 	log.Println(fsevents.EventIDForDeviceBeforeTime(dev, time.Now()))
+	log.Println(path)
 
 	es := &fsevents.EventStream{
 		Paths:   []string{path},
 		Latency: 500 * time.Millisecond,
 		Device:  dev,
-		Flags:   fsevents.FileEvents | fsevents.WatchRoot}
+		Flags:   fsevents.FileEvents | fsevents.WatchRoot,
+	}
 	es.Start()
 	ec := es.Events
 
